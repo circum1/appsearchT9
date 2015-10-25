@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file:///bigext4/melo/AppSearchT9-as/AppSearchT9-as.iml" filepath="/bigext4/melo/AppSearchT9-as/AppSearchT9-as.iml" />
+      <module fileurl="file:///bigext4/melo/AppSearchT9-as/app/app.iml" filepath="/bigext4/melo/AppSearchT9-as/app/app.iml" />
+    </modules>
+  </component>
+</project>

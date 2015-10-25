@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:robobunny="http://robobunny.com" >
+
+    <com.robobunny.SeekBarPreference
+        android:defaultValue="0"
+        android:key="keyPadding"
+        android:max="20"
+        android:summary="Adjust the vertical size of the keys"
+        android:title="T9 keyboard height"
+        robobunny:min="0"
+        robobunny:unitsLeft=""
+        robobunny:unitsRight="" />
+    <com.robobunny.SeekBarPreference
+        android:defaultValue="0"
+        android:key="leftPadding"
+        android:max="100"
+        android:summary="Adjust the space to the left of the keyboard"
+        android:title="Left padding of the keyboard"
+        robobunny:min="0"
+        robobunny:unitsLeft=""
+        robobunny:unitsRight="" />
+    <com.robobunny.SeekBarPreference
+        android:defaultValue="0"
+        android:key="rightPadding"
+        android:max="100"
+        android:summary="Adjust the space to the right of the keyboard"
+        android:title="Right padding of the keyboard"
+        robobunny:min="0"
+        robobunny:unitsLeft=""
+        robobunny:unitsRight="" />
+    <com.robobunny.SeekBarPreference
+        android:defaultValue="0"
+        android:key="bottomPadding"
+        android:max="100"
+        android:summary="Adjust the space at the bottom of the keyboard"
+        android:title="Bottom padding of the keyboard"
+        robobunny:min="0"
+        robobunny:unitsLeft=""
+        robobunny:unitsRight="" />
+
+    <Preference android:title="Refresh application list"
+                android:key="refreshAppInfo"
+                android:summary="Select if your are missing recently installed apps from the list">
+    </Preference>
+
+    <!-- <CheckBoxPreference -->
+    <!-- android:key="pref_sync" -->
+    <!-- android:title="@string/t9_buttons_padding" -->
+    <!-- android:defaultValue="true" /> -->
+    <!-- <ListPreference -->
+    <!-- android:dependency="pref_sync" -->
+    <!-- android:key="pref_syncConnectionType" -->
+    <!-- android:title="@string/pref_syncConnectionType" -->
+    <!-- android:dialogTitle="@string/pref_syncConnectionType" -->
+    <!-- android:entries="@array/pref_syncConnectionTypes_entries" -->
+    <!-- android:entryValues="@array/pref_syncConnectionTypes_values" -->
+    <!-- android:defaultValue="@string/pref_syncConnectionTypes_default" /> -->
+
+</PreferenceScreen>
