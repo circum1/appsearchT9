@@ -5,7 +5,7 @@
     <com.robobunny.SeekBarPreference
         android:defaultValue="0"
         android:key="keyPadding"
-        android:max="20"
+        android:max="25"
         android:summary="Adjust the vertical size of the keys"
         android:title="T9 keyboard height"
         robobunny:min="0"

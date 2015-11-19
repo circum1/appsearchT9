@@ -29,7 +29,9 @@ import java.util.List;
 public class AppInfoService extends Service {
 
   private List<AppInfo> appinfos = new ArrayList<>();
-  private final static String APPINFO_CACHE_FILENAME="appinfo_cache.ser";
+  private final static String APPINFO_CACHE_FILENAME = "appinfo_cache.ser";
+
+  private volatile boolean updateInProgress = false;
 
   // public interface to Activity
   public List<AppInfo> getAppinfos() {
@@ -49,24 +51,35 @@ public class AppInfoService extends Service {
   }
 
   private void updateAppInfoList() {
-    List<AppInfo> tempAppinfos = new ArrayList<>();
-    PackageManager pm = getPackageManager();
-    Log.i("AIS", "updateAppInfoList() - building apps list");
-    final Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
-    mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-    final List<ResolveInfo> apps = pm.queryIntentActivities(mainIntent, 0);
-
-    for (ResolveInfo app : apps) {
-      tempAppinfos.add(new AppInfo(app, getPackageManager()));
+    synchronized (this) {
+      if (updateInProgress) {
+        return;
+      }
+      updateInProgress = true;
     }
-    Log.i("AIS", "updateAppInfoList() - saving cache");
+    try {
+      List<AppInfo> tempAppinfos = new ArrayList<>();
+      PackageManager pm = getPackageManager();
+      Log.i("AIS", "updateAppInfoList() - building apps list");
+      final Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
+      mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+      final List<ResolveInfo> apps = pm.queryIntentActivities(mainIntent, 0);
 
-    writeObjectToFile(this, tempAppinfos, APPINFO_CACHE_FILENAME);
+      for (ResolveInfo app : apps) {
+        tempAppinfos.add(new AppInfo(app, getPackageManager()));
+      }
+      Log.i("AIS", "updateAppInfoList() - saving cache");
 
-    Log.i("AIS", "updateAppInfoList() - cache saved");
-    appinfos = tempAppinfos;
-    if (onChangeListener != null) {
-      onChangeListener.appInfoChanged();
+      writeObjectToFile(this, tempAppinfos, APPINFO_CACHE_FILENAME);
+
+      Log.i("AIS", "updateAppInfoList() - cache saved");
+      appinfos = tempAppinfos;
+      if (onChangeListener != null) {
+        onChangeListener.appInfoChanged();
+      }
+    } finally {
+      // sync not needed
+      updateInProgress = false;
     }
   }
 
@@ -76,9 +89,9 @@ public class AppInfoService extends Service {
 
     Log.i("AIS", "onCreate() loading cache file");
     List<AppInfo> tempAppinfos = (List<AppInfo>) readObjectFromFile(this, APPINFO_CACHE_FILENAME);
-    if (tempAppinfos!=null) {
+    if (tempAppinfos != null) {
       Log.i("AIS", "onCreate() cache file loaded: " + tempAppinfos);
-      appinfos=tempAppinfos;
+      appinfos = tempAppinfos;
     } else {
       Log.i("AIS", "onCreate() cache file not found");
     }
@@ -130,7 +143,7 @@ public class AppInfoService extends Service {
       label = labelSeq != null ? labelSeq.toString() : "";
       Drawable icon = app.loadIcon(pm);
       if (icon != null) {
-        bitmap=AppInfoService.drawableToBitmap(icon);
+        bitmap = AppInfoService.drawableToBitmap(icon);
       }
       t9list = MainActivity.T9.labelToT9(label);
       packageName = app.activityInfo.applicationInfo.packageName;
@@ -161,7 +174,7 @@ public class AppInfoService extends Service {
         ObjectInputStream stream
     ) throws ClassNotFoundException, IOException {
       stream.defaultReadObject();
-      bitmap=BitmapFactory.decodeStream(stream);
+      bitmap = BitmapFactory.decodeStream(stream);
     }
 
     private void writeObject(

@@ -16,6 +16,7 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.RingtonePreference;
 import android.text.TextUtils;
+import android.widget.Toast;
 
 import java.util.List;
 
@@ -89,6 +90,7 @@ public class SettingsActivity extends PreferenceActivity {
 			@Override
 			public boolean onPreferenceClick(Preference preference) {
 				startService(new Intent(SettingsActivity.this, AppInfoService.class));
+				Toast.makeText(SettingsActivity.this, "The list of applications is being updated.", Toast.LENGTH_SHORT).show();
 				return true;
 			}
 		});

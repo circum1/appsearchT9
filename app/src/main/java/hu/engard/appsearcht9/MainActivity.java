@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -16,7 +15,6 @@ import android.text.SpannableString;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -102,20 +100,20 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
         }
       });
     }
-    ((Button) findViewById(R.id.ButtonLaunch)).setOnClickListener(new OnClickListener() {
+    (findViewById(R.id.ButtonLaunch)).setOnClickListener(new OnClickListener() {
       @Override
       public void onClick(View arg0) {
         if (currentList.size() > 0) onItemClick(0);
       }
     });
-    ((Button) findViewById(R.id.ButtonClr)).setOnClickListener(new OnClickListener() {
+    (findViewById(R.id.ButtonClr)).setOnClickListener(new OnClickListener() {
       @Override
       public void onClick(View arg0) {
         searchString = new String();
         updateList();
       }
     });
-    ((Button) findViewById(R.id.ButtonBack)).setOnClickListener(new OnClickListener() {
+    (findViewById(R.id.ButtonBack)).setOnClickListener(new OnClickListener() {
       @Override
       public void onClick(View arg0) {
         if (searchString.length() > 0) {
@@ -144,11 +142,19 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     int keyPadding = (int) dip2px(sharedPref.getInt("keyPadding", 0) + 11);
     Log.i("updateLayout", "keyPadding: " + sharedPref.getInt("keyPadding", 0) + ", px: " + keyPadding);
 
+    // left & right paddings max value (100) means half screen
+    int leftPadding = sharedPref.getInt("leftPadding", 0);
+    int rightPadding = sharedPref.getInt("rightPadding", 0);
+    if (leftPadding + rightPadding > 150) {
+      int delta=(leftPadding + rightPadding-150)/2;
+      leftPadding-=delta;
+      rightPadding-=delta;
+    }
     TableLayout table = (TableLayout) findViewById(R.id.keyboardTable);
-    table.setPadding((int) dip2px(sharedPref.getInt("leftPadding", 0)),
+    table.setPadding(leftPadding *getResources().getDisplayMetrics().widthPixels/200,
         0,
-        (int) dip2px(sharedPref.getInt("rightPadding", 0)),
-        (int) dip2px(sharedPref.getInt("bottomPadding", 0)));
+        rightPadding *getResources().getDisplayMetrics().widthPixels/200,
+        (int) dip2px(sharedPref.getInt("bottomPadding", 0)*2));
     // layout setup
     for (int id : buttonIds) {
       Button b = ((Button) findViewById(id));
@@ -185,7 +191,12 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
 
   private void updateAppInfoService() {
     appinfos = appInfoService.getAppinfos();
-    Collections.sort(appinfos, new AppStatComparator(getPackageManager(), appStats));
+    if (appinfos.size()>0) {
+      findViewById(R.id.loadingPanel).setVisibility(View.GONE);
+    } else {
+      findViewById(R.id.loadingPanel).setVisibility(View.VISIBLE);
+    }
+    Collections.sort(appinfos, new AppStatComparator(appStats));
     updateList();
   }
 
@@ -272,7 +283,7 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
       View row = convertView;
-      RecordHolder holder = null;
+      RecordHolder holder;
 
       if (row == null) {
         LayoutInflater inflater = ((Activity) context).getLayoutInflater();
@@ -304,7 +315,8 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
   }
 
   public float dip2px(float dp) {
-    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
+//    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
+    return dp*getResources().getDisplayMetrics().density;
   }
 
   // Service connection
@@ -337,14 +349,14 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     for (String line : statLines) {
       if (line.trim().length() > 0) {
         AppStat stat = AppStat.fromString(line);
-        Log.i("stats", "Loaded stat: " + stat.toString());
-        appStats.put(stat.label, stat);
+//        Log.i("stats", "Loaded stat: " + stat);
+        if (stat!=null) appStats.put(stat.label, stat);
       }
     }
   }
 
   private void saveAppStats() {
-    List<String> lines = new ArrayList<String>(appStats.size());
+    List<String> lines = new ArrayList<>(appStats.size());
     for (AppStat appStat : appStats.values()) {
       lines.add(appStat.toString());
     }
@@ -352,13 +364,13 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     SharedPreferences prefs = getPreferences(MODE_PRIVATE);
     SharedPreferences.Editor editor = prefs.edit();
     editor.putString(STAT_PREF_KEY, TextUtils.join("\n", lines));
-    editor.commit();
+    editor.apply();
 
   }
 
   private static class AppStat {
     public final String label;
-    public final List<Long> startDates = new ArrayList<Long>();
+    public final List<Long> startDates = new ArrayList<>();
 
     public AppStat(String label) {
       this.label = label;
@@ -415,7 +427,7 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     }
 
     public static List<T9Data> labelToT9(String label) {
-      List<Integer> startPositions = new ArrayList<Integer>();
+      List<Integer> startPositions = new ArrayList<>();
       startPositions.add(0);
 
       Collator coll = Collator.getInstance();
@@ -460,7 +472,7 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
         prevT9 = t9.charAt(t9.length() - 1);
       }
 
-      List<T9Data> res = new ArrayList<T9Data>();
+      List<T9Data> res = new ArrayList<>();
       for (int start : startPositions) {
         res.add(new T9Data(t9.substring(start), start));
       }
@@ -469,8 +481,7 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
   }
 
   public static class AppStatComparator implements Comparator<AppInfoService.AppInfo> {
-    public AppStatComparator(PackageManager pm, Map<String, AppStat> appStats) {
-      mPM = pm;
+    public AppStatComparator(Map<String, AppStat> appStats) {
       this.appStats = appStats;
       mCollator.setStrength(Collator.PRIMARY);
     }
@@ -491,7 +502,6 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     }
 
     private final Collator mCollator = Collator.getInstance();
-    private PackageManager mPM;
     private Map<String, AppStat> appStats;
   }
 
