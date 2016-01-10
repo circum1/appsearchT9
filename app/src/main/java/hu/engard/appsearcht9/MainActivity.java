@@ -33,6 +33,7 @@ import android.widget.TextView;
 import java.io.Serializable;
 import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -209,9 +210,9 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
   public void onItemClick(int position) {
     AppInfoService.AppInfo appInfo = adapter.getItem(position).appInfo;
 
-    if (appStats.get(appInfo.label) == null)
-      appStats.put(appInfo.label, new AppStat(appInfo.label));
-    appStats.get(appInfo.label).started();
+    if (appStats.get(appInfo.activityName) == null)
+      appStats.put(appInfo.activityName, new AppStat(appInfo.activityName));
+    appStats.get(appInfo.activityName).started();
 
     ComponentName name = new ComponentName(appInfo.packageName, appInfo.activityName);
     Log.i("onItemClick", "componentname: " + name.toString());
@@ -296,8 +297,6 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
         holder = (RecordHolder) row.getTag();
       }
 
-//      Log.i("getView", "(" + position + ")");
-
       SearchHit item = data.get(position);
       SpannableString txt = new SpannableString(item.appInfo.label);
       txt.setSpan(new ForegroundColorSpan(0xff33b5e5), item.hitPosition, item.hitPosition + MainActivity.this.searchString.length(), 0);
@@ -349,8 +348,8 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     for (String line : statLines) {
       if (line.trim().length() > 0) {
         AppStat stat = AppStat.fromString(line);
-//        Log.i("stats", "Loaded stat: " + stat);
-        if (stat!=null) appStats.put(stat.label, stat);
+        Log.i("stats", "Loading stat: " + stat);
+        if (stat!=null) appStats.put(stat.activityName, stat);
       }
     }
   }
@@ -360,7 +359,7 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     for (AppStat appStat : appStats.values()) {
       lines.add(appStat.toString());
     }
-    Log.i("stats", "Saving stats content: " + TextUtils.join(", ", lines));
+    Log.i("stats", "Saving stats content:\n" + TextUtils.join("\n", lines));
     SharedPreferences prefs = getPreferences(MODE_PRIVATE);
     SharedPreferences.Editor editor = prefs.edit();
     editor.putString(STAT_PREF_KEY, TextUtils.join("\n", lines));
@@ -369,23 +368,32 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
   }
 
   private static class AppStat {
-    public final String label;
-    public final List<Long> startDates = new ArrayList<>();
+    public final String activityName;
+    // the list is because of historic reasons -- currently only the last item is used
+    private final List<Long> startDates = new ArrayList<>();
+    private int counter=0;
 
-    public AppStat(String label) {
-      this.label = label;
-    }
-
-    public int count() {
-      return startDates.size();
+    public AppStat(String activityName) {
+      this.activityName = activityName.replace(':', '_');
     }
 
     public void started() {
+      counter++;
       startDates.add(new Date().getTime());
     }
 
     public String toString() {
-      return label + ": " + TextUtils.join(", ", startDates);
+      return activityName + ": " + counter + (startDates.size()==0 ? "" : ", " + startDates.get(startDates.size() - 1));
+    }
+
+    public static int compare(AppStat asa, AppStat asb) {
+      if (asa.counter != asb.counter) {
+        return asa.counter > asb.counter ? -1 : 1;
+      }
+      if (asa.startDates.size()>0 && asb.startDates.size()>0) {
+        return asa.startDates.get(asa.startDates.size()-1) > asb.startDates.get(asb.startDates.size()-1) ? -1 : 1;
+      }
+      return 0;
     }
 
     public static AppStat fromString(String from) {
@@ -393,16 +401,18 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
       if (colonPos < 0) return null;
       AppStat ret = new AppStat(from.substring(0, colonPos));
       from = from.substring(colonPos + 1);
-      int pos = 0;
-      while (pos < from.length()) {
-        if (from.charAt(pos) == ' ' || from.charAt(pos) == ',') {
-          pos++;
-          continue;
+      String[] arr=from.split(", ");
+      if (arr.length<2) {
+        return ret;
+      }
+      try {
+        ret.counter=Integer.valueOf(arr[0].trim());
+        arr= Arrays.copyOfRange(arr, 1, arr.length);
+        for (String s: arr) {
+          ret.startDates.add(Long.valueOf(s.trim()));
         }
-        int end = pos;
-        while (end < from.length() && Character.isDigit(from.charAt(end))) end++;
-        ret.startDates.add(Long.valueOf(from.substring(pos, end)));
-        pos = end;
+      } catch (NumberFormatException e) {
+        Log.w("stats", "Invalid AppStat shared prefs", e);
       }
       return ret;
     }
@@ -487,16 +497,14 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
     }
 
     public final int compare(AppInfoService.AppInfo a, AppInfoService.AppInfo b) {
-      AppStat asa = appStats.get(a.label);
-      AppStat asb = appStats.get(b.label);
+      AppStat asa = appStats.get(a.activityName);
+      AppStat asb = appStats.get(b.activityName);
       if (asa != null && asb != null) {
-        // higher count means it has to be ordered before the other
-        if (asa.count() != asb.count()) {
-          return asa.count() > asb.count() ? -1 : 1;
-        }
+        int ret=AppStat.compare(asa, asb);
+        if (ret!=0) return ret;
       }
-      if (asa != null && asb == null && asa.count() > 0) return -1;
-      if (asb != null && asa == null && asb.count() > 0) return 1;
+      if (asa != null && asb == null) return -1;
+      if (asb != null && asa == null) return 1;
 
       return mCollator.compare(a.label, b.label);
     }
