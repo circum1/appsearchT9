@@ -210,6 +210,11 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
   public void onItemClick(int position) {
     AppInfoService.AppInfo appInfo = adapter.getItem(position).appInfo;
 
+    // weight amortization
+    for (AppStat stat : appStats.values()) {
+      stat.weight=stat.weight*0.99f;
+    }
+
     if (appStats.get(appInfo.activityName) == null)
       appStats.put(appInfo.activityName, new AppStat(appInfo.activityName));
     appStats.get(appInfo.activityName).started();
@@ -345,17 +350,25 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
   private void initAppStats() {
     appStats.clear();
     String[] statLines = getPreferences(MODE_PRIVATE).getString(STAT_PREF_KEY, "").split("\\n");
+    if (statLines.length>0 && !statLines[0].equals("2")) {
+      Log.i("stats", "Not supported version, reset preferences");
+      Log.i("stats", "First line: '"+statLines[0]+"'");
+      statLines=new String[0];
+    }
     for (String line : statLines) {
       if (line.trim().length() > 0) {
         AppStat stat = AppStat.fromString(line);
         Log.i("stats", "Loading stat: " + stat);
+        // the version line is filtered with this check
         if (stat!=null) appStats.put(stat.activityName, stat);
       }
     }
   }
 
   private void saveAppStats() {
-    List<String> lines = new ArrayList<>(appStats.size());
+    List<String> lines = new ArrayList<>(appStats.size()+1);
+    // preferences version
+    lines.add("2");
     for (AppStat appStat : appStats.values()) {
       lines.add(appStat.toString());
     }
@@ -369,29 +382,23 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
 
   private static class AppStat {
     public final String activityName;
-    // the list is because of historic reasons -- currently only the last item is used
-    private final List<Long> startDates = new ArrayList<>();
-    private int counter=0;
+    private float weight = 0.0f;
 
     public AppStat(String activityName) {
       this.activityName = activityName.replace(':', '_');
     }
 
     public void started() {
-      counter++;
-      startDates.add(new Date().getTime());
+      weight+=1.0;
     }
 
     public String toString() {
-      return activityName + ": " + counter + (startDates.size()==0 ? "" : ", " + startDates.get(startDates.size() - 1));
+      return activityName + ": " + weight;
     }
 
     public static int compare(AppStat asa, AppStat asb) {
-      if (asa.counter != asb.counter) {
-        return asa.counter > asb.counter ? -1 : 1;
-      }
-      if (asa.startDates.size()>0 && asb.startDates.size()>0) {
-        return asa.startDates.get(asa.startDates.size()-1) > asb.startDates.get(asb.startDates.size()-1) ? -1 : 1;
+      if (asa.weight != asb.weight) {
+        return asa.weight > asb.weight ? -1 : 1;
       }
       return 0;
     }
@@ -400,17 +407,8 @@ public class MainActivity extends Activity implements OnSharedPreferenceChangeLi
       int colonPos = from.indexOf(':');
       if (colonPos < 0) return null;
       AppStat ret = new AppStat(from.substring(0, colonPos));
-      from = from.substring(colonPos + 1);
-      String[] arr=from.split(", ");
-      if (arr.length<2) {
-        return ret;
-      }
       try {
-        ret.counter=Integer.valueOf(arr[0].trim());
-        arr= Arrays.copyOfRange(arr, 1, arr.length);
-        for (String s: arr) {
-          ret.startDates.add(Long.valueOf(s.trim()));
-        }
+        ret.weight =Float.valueOf(from.substring(colonPos + 1).trim());
       } catch (NumberFormatException e) {
         Log.w("stats", "Invalid AppStat shared prefs", e);
       }
